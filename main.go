@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -175,6 +176,33 @@ type CostBucket struct {
 type Money struct {
 	Value    float64 `json:"value"`
 	Currency string  `json:"currency"`
+}
+
+func (m *Money) UnmarshalJSON(b []byte) error {
+	var aux struct {
+		Value    interface{} `json:"value"`
+		Currency string      `json:"currency"`
+	}
+	if err := json.Unmarshal(b, &aux); err != nil {
+		return err
+	}
+
+	switch v := aux.Value.(type) {
+	case nil:
+		m.Value = 0
+	case float64:
+		m.Value = v
+	case string:
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return fmt.Errorf("cannot parse Money.value (string): %w", err)
+		}
+		m.Value = f
+	default:
+		return fmt.Errorf("unexpected type for Money.value: %T", v)
+	}
+	m.Currency = aux.Currency
+	return nil
 }
 
 type CostResult struct {
